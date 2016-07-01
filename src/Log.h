@@ -47,7 +47,7 @@ std::ostream& operator<<(std::ostream& stream, severityLevel level)
 
 BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", severityLevel);
 
-void initalizeLog(std::string filename = "") {
+void initializeLog(std::string filename = "") {
     typedef logging::sinks::synchronous_sink<logging::sinks::text_ostream_backend> text_sink;
     boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
 
@@ -68,7 +68,7 @@ void initalizeLog(std::string filename = "") {
     logging::core::get()->add_sink(sink);
 }
 
-void setFilter(severityLevel level) {
+void setLogFilter(severityLevel level) {
     logging::core::get()->set_filter(severity >= level);
 }
 
