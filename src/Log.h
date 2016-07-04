@@ -19,63 +19,65 @@
 
 namespace logging = boost::log;
 
-enum severityLevel {
-    periodic,
-    trace,
-    startup,
-    teardown,
-    info,
-    error,
-    debug
-};
-
-BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", severityLevel);
-
-inline std::ostream& operator<<(std::ostream& stream, severityLevel level)
-{
-    static const char* strings[] =
-    {
-        "periodic",
-        "   trace",
-        " startup",
-        "teardown",
-        "    info",
-        "   error",
-        "   debug"
+namespace log {
+    enum severityLevel {
+        periodic,
+        trace,
+        startup,
+        teardown,
+        info,
+        error,
+        debug
     };
-    if (level >= 0 && level < 7) {
-        stream << strings[level];
-    } else {
-        stream << (int)(level);
+
+    BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", severityLevel);
+
+    inline std::ostream& operator<<(std::ostream& stream, severityLevel level)
+    {
+        static const char* strings[] =
+        {
+            "periodic",
+            "   trace",
+            " startup",
+            "teardown",
+            "    info",
+            "   error",
+            "   debug"
+        };
+        if (level >= 0 && level < 7) {
+            stream << strings[level];
+        } else {
+            stream << (int)(level);
+        }
+        return stream;
     }
-    return stream;
-}
 
-inline void initializeLog(std::string filename = "") {
-    logging::add_common_attributes();
+    inline void initializeLog(std::string filename = "") {
+        logging::add_common_attributes();
 
-    typedef logging::sinks::synchronous_sink<logging::sinks::text_ostream_backend> text_sink;
-    boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
+        typedef logging::sinks::synchronous_sink<logging::sinks::text_ostream_backend> text_sink;
+        boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
 
-    boost::shared_ptr<std::ostream> stream(&std::clog, boost::empty_deleter());
-    sink->locked_backend()->add_stream(stream);
+        boost::shared_ptr<std::ostream> stream(&std::clog, boost::empty_deleter());
+        sink->locked_backend()->add_stream(stream);
 
-    if (filename != "") {
-        boost::shared_ptr<std::ostream> fileStream(new std::ofstream(filename));
-        sink->locked_backend()->add_stream(fileStream);
+        if (filename != "") {
+            boost::shared_ptr<std::ostream> fileStream(new std::ofstream(filename));
+            sink->locked_backend()->add_stream(fileStream);
+        }
+
+        logging::formatter format = logging::expressions::stream <<
+            "[" << logging::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%m-%d-%Y %H:%M:%S") << "]" <<
+            "[" << severity << "] " <<
+            logging::expressions::smessage;
+        sink->set_formatter(format);
+
+        logging::core::get()->add_sink(sink);
     }
 
-    logging::formatter format = logging::expressions::stream <<
-        "[" << logging::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%m-%d-%Y %H:%M:%S") << "]" <<
-        "[" << severity << "] " <<
-        logging::expressions::smessage;
-    sink->set_formatter(format);
-
-    logging::core::get()->add_sink(sink);
-}
-
-inline void setLogFilter(severityLevel level) {
-    logging::core::get()->set_filter(severity >= level);
+    inline void setLogFilter(severityLevel level) {
+        logging::core::get()->set_filter(severity >= level);
+    }
 }
 
 #define LOG(x,y) BOOST_LOG_SEV(x,y)
