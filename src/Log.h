@@ -19,7 +19,7 @@
 
 namespace logging = boost::log;
 
-namespace log {
+namespace logger {
     enum severityLevel {
         periodic,
         trace,
