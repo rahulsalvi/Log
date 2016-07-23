@@ -52,14 +52,16 @@ namespace logger {
         return stream;
     }
 
-    inline void initializeLog(std::string filename = "") {
+    inline void initializeLog(bool console = true, std::string filename = "") {
         logging::add_common_attributes();
 
         typedef logging::sinks::synchronous_sink<logging::sinks::text_ostream_backend> text_sink;
         boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
 
-        boost::shared_ptr<std::ostream> stream(&std::clog, boost::empty_deleter());
-        sink->locked_backend()->add_stream(stream);
+        if (console) {
+            boost::shared_ptr<std::ostream> stream(&std::clog, boost::empty_deleter());
+            sink->locked_backend()->add_stream(stream);
+        }
 
         if (filename != "") {
             boost::shared_ptr<std::ostream> fileStream(new std::ofstream(filename));
