@@ -69,7 +69,7 @@ namespace logger {
         }
 
         logging::formatter format = logging::expressions::stream <<
-            "[" << logging::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%m-%d-%Y %H:%M:%S") << "]" <<
+            "[" << logging::expressions::format_date_time<boost::posix_time::ptime>("TimeStamp", "%m-%d-%Y %H:%M:%S.%f") << "]" <<
             "[" << severity << "] " <<
             logging::expressions::smessage;
         sink->set_formatter(format);
