@@ -1,0 +1,13 @@
+find_package(Boost OPTIONAL_COMPONENTS log thread date_time system)
+set(Boost_USE_STATIC_LIBS OFF)
+set(Boost_USE_MULTITHREADED ON)
+set(Boost_USE_STATIC_RUNTIME OFF)
+include_directories(SYSTEM ${Boost_INCLUDE_DIR})
+
+if(Boost_LOG_FOUND AND Boost_DATE_TIME_FOUND AND Boost_THREAD_FOUND AND Boost_SYSTEM_FOUND)
+    set(LOG_LIBRARIES ${Boost_LOG_LIBRARY} ${Boost_DATE_TIME_LIBRARY} ${Boost_THREAD_LIBRARY} ${Boost_SYSTEM_LIBRARY})
+    set(LOG_DEFINITIONS BOOST_LOG_DYN_LINK LOGGING_ENABLED)
+    set(LOG_DEPENDENCIES true)
+else()
+    set(LOG_DEPENDENCIES false)
+endif()
