@@ -3,23 +3,50 @@
 
 #ifdef LOGGING_ENABLED
 
+#define PERIODIC 0
+#define TRACE    1
+#define STARTUP  2
+#define TEARDOWN 3
+#define INFO     4
+#define ERROR    5
+#define DEBUG    6
+
+#define INIT_LOG logger::init();
+
+#define SEVERITY logger::severity
+#define LEVEL(x) logger::Severity(x)
+
+#define ADD_CONSOLE_LOG             logger::addConsoleLog();
+#define ADD_FILTERED_CONSOLE_LOG(x) logger::addConsoleLog(x);
+
+#define ADD_FILE_LOG(x)             logger::addFileLog(x);
+#define ADD_FILTERED_FILE_LOG(x,y)  logger::addFileLog(x,y);
+
+#define ADD_LOG_LEVEL(x,y)          logger::addLevel(x,y);
+#define ADD_COMMON_LOG_LEVELS       logger::addCommonLevels();
+
+#define GLOBAL_FILTER(x)            logger::setGlobalFilter(x);
+#define RESET_GLOBAL_FILTER         logger::resetGlobalFilter();
+
+#define LOG(x) BOOST_LOG_SEV(logger::logSource,logger::Severity(x))
+
 #include <fstream>
 #include <stdexcept>
 #include <string>
 
-#include <boost/unordered_map.hpp>
+#include <boost/date_time/posix_time/posix_time_types.hpp>
+#include <boost/log/attributes.hpp>
 #include <boost/log/core.hpp>
 #include <boost/log/expressions.hpp>
-#include <boost/log/attributes.hpp>
-#include <boost/log/sources/severity_logger.hpp>
-#include <boost/log/sources/record_ostream.hpp>
 #include <boost/log/sinks/sync_frontend.hpp>
 #include <boost/log/sinks/text_ostream_backend.hpp>
+#include <boost/log/sources/record_ostream.hpp>
+#include <boost/log/sources/severity_logger.hpp>
 #include <boost/log/support/date_time.hpp>
-#include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
+#include <boost/log/utility/setup/file.hpp>
+#include <boost/unordered_map.hpp>
 #include <boost/utility/empty_deleter.hpp>
-#include <boost/date_time/posix_time/posix_time_types.hpp>
 
 namespace logging = boost::log;
 namespace expr = boost::log::expressions;
@@ -80,7 +107,7 @@ namespace logger {
     }
 
     //Register as an attribute
-    BOOST_LOG_ATTRIBUTE_KEYWORD(attrSeverity, "Severity", Severity);
+    BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", Severity);
 
     //Add a custom level
     inline void addLevel(int level, std::string label) {
@@ -88,10 +115,22 @@ namespace logger {
         levelsReversed.insert(std::make_pair(label, level));
     }
 
+    //Add common levels instead of defining custom ones
+    inline void addCommonLevels() {
+        addLevel(-1,             " unknown");
+        addLevel(PERIODIC, "periodic");
+        addLevel(TRACE,    "   trace");
+        addLevel(STARTUP,  " startup");
+        addLevel(TEARDOWN, "teardown");
+        addLevel(INFO,     "    info");
+        addLevel(ERROR,    "   error");
+        addLevel(DEBUG,    "   debug");
+    }
+
     //Global format specifier
     logging::formatter format = expr::stream
         << "[" << expr::format_date_time<boost::posix_time::ptime>("TimeStamp", "%m-%d-%Y %H:%M:%S.%f") << "]"
-        << "[" << attrSeverity << "] "
+        << "[" << severity << "] "
         << expr::smessage;
 
     //Required to make TimeStamp work currently
@@ -111,6 +150,18 @@ namespace logger {
         logging::core::get()->add_sink(sink);
     }
 
+    inline void addConsoleLog(const logging::filter& filter) {
+        typedef logging::sinks::synchronous_sink<logging::sinks::text_ostream_backend> text_sink;
+        boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
+
+        boost::shared_ptr<std::ostream> stream(&std::clog, boost::empty_deleter());
+        sink->locked_backend()->add_stream(stream);
+        sink->set_formatter(format);
+        sink->set_filter(filter);
+
+        logging::core::get()->add_sink(sink);
+    }
+
     //Call to create a file log
     inline void addFileLog(std::string filename) {
         typedef logging::sinks::synchronous_sink<logging::sinks::text_ostream_backend> text_sink;
@@ -123,80 +174,50 @@ namespace logger {
         logging::core::get()->add_sink(sink);
     }
 
-    //Add common levels instead of defining custom ones
-    inline void addCommonLevels() {
-        addLevel(-1, " unknown");
-        addLevel(0,  "periodic");
-        addLevel(1,  "   trace");
-        addLevel(2,  " startup");
-        addLevel(3,  "teardown");
-        addLevel(4,  "    info");
-        addLevel(5,  "   error");
-        addLevel(6,  "   debug");
+    inline void addFileLog(std::string filename, const logging::filter& filter) {
+        typedef logging::sinks::synchronous_sink<logging::sinks::text_ostream_backend> text_sink;
+        boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
+
+        boost::shared_ptr<std::ostream> fileStream(new std::ofstream(filename));
+        sink->locked_backend()->add_stream(fileStream);
+        sink->set_formatter(format);
+        sink->set_filter(filter);
+
+        logging::core::get()->add_sink(sink);
     }
 
     //Set log filter to be greater than some value
-    inline void setLogFilter(Severity sev) {
-        logging::core::get()->set_filter(attrSeverity >= sev);
+    inline void setGlobalFilter(const logging::filter& filter) {
+        logging::core::get()->set_filter(filter);
+    }
+
+    inline void resetGlobalFilter() {
+        logging::core::get()->reset_filter();
     }
 
     //Create a log source
     static logging::sources::severity_logger_mt<logger::Severity> logSource;
 }
 
-#define INIT_LOG logger::init();
-#define ADD_CONSOLE_LOG logger::addConsoleLog();
-#define ADD_FILE_LOG(x) logger::addFileLog(x);
-
-#define ADD_LOG_LEVEL(x,y) logger::addLevel(x,y);
-#define ADD_COMMON_LOG_LEVELS logger::addCommonLevels();
-
-#define SEVERITY_FILTER(x)       logger::setLogFilter(logger::Severity(x));
-#define SEVERITY_FILTER_PERIODIC logger::setLogFilter(logger::Severity(0));
-#define SEVERITY_FILTER_TRACE    logger::setLogFilter(logger::Severity(1));
-#define SEVERITY_FILTER_STARTUP  logger::setLogFilter(logger::Severity(2));
-#define SEVERITY_FILTER_TEARDOWN logger::setLogFilter(logger::Severity(3));
-#define SEVERITY_FILTER_INFO     logger::setLogFilter(logger::Severity(4));
-#define SEVERITY_FILTER_ERROR    logger::setLogFilter(logger::Severity(5));
-#define SEVERITY_FILTER_DEBUG    logger::setLogFilter(logger::Severity(6));
-
-#define LOG(x)       BOOST_LOG_SEV(logger::logSource,logger::Severity(x))
-#define LOG_PERIODIC BOOST_LOG_SEV(logger::logSource,logger::Severity(0))
-#define LOG_TRACE    BOOST_LOG_SEV(logger::logSource,logger::Severity(1))
-#define LOG_STARTUP  BOOST_LOG_SEV(logger::logSource,logger::Severity(2))
-#define LOG_TEARDOWN BOOST_LOG_SEV(logger::logSource,logger::Severity(3))
-#define LOG_INFO     BOOST_LOG_SEV(logger::logSource,logger::Severity(4))
-#define LOG_ERROR    BOOST_LOG_SEV(logger::logSource,logger::Severity(5))
-#define LOG_DEGUG    BOOST_LOG_SEV(logger::logSource,logger::Severity(6))
-
 #else
 
 #include <ostream>
 
 #define INIT_LOG
+
 #define ADD_CONSOLE_LOG
+#define ADD_FILTERED_CONSOLE_LOG(x)
+
 #define ADD_FILE_LOG(x)
+#define ADD_FILTERED_FILE_LOG(x,y)
 
 #define ADD_LOG_LEVEL(x,y)
 #define ADD_COMMON_LOG_LEVELS
 
-#define SEVERITY_FILTER(x)
-#define SEVERITY_FILTER_PERIODIC
-#define SEVERITY_FILTER_TRACE
-#define SEVERITY_FILTER_STARTUP
-#define SEVERITY_FILTER_TEARDOWN
-#define SEVERITY_FILTER_INFO
-#define SEVERITY_FILTER_ERROR
-#define SEVERITY_FILTER_DEBUG
+#define GLOBAL_FILTER(x)
+#define RESET_GLOBAL_FILTER
 
-#define LOG(x)       std::ostream(0)
-#define LOG_PERIODIC std::ostream(0)
-#define LOG_TRACE    std::ostream(0)
-#define LOG_STARTUP  std::ostream(0)
-#define LOG_TEARDOWN std::ostream(0)
-#define LOG_INFO     std::ostream(0)
-#define LOG_ERROR    std::ostream(0)
-#define LOG_DEGUG    std::ostream(0)
+#define LOG(x) std::ostream(0)
 
 #endif
 
