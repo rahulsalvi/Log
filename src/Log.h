@@ -14,8 +14,14 @@
 #include <boost/log/support/date_time.hpp>
 #include <boost/log/utility/setup/file.hpp>
 #include <boost/log/utility/setup/common_attributes.hpp>
-#include <boost/utility/empty_deleter.hpp>
 #include <boost/date_time/posix_time/posix_time_types.hpp>
+
+#include <boost/version.hpp>
+#if BOOST_VERSION < 105600
+#include <boost/utility/empty_deleter.hpp>
+#else
+#include <boost/core/null_deleter.hpp>
+#endif
 
 namespace logging = boost::log;
 
@@ -59,7 +65,11 @@ namespace logger {
         boost::shared_ptr<text_sink> sink = boost::make_shared<text_sink>();
 
         if (console) {
+#if BOOST_VERSION < 105600
             boost::shared_ptr<std::ostream> stream(&std::clog, boost::empty_deleter());
+#else
+            boost::shared_ptr<std::ostream> stream(&std::clog, boost::null_deleter());
+#endif
             sink->locked_backend()->add_stream(stream);
         }
 
